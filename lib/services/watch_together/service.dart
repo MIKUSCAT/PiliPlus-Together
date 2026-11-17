@@ -397,6 +397,18 @@ class WatchTogetherService
         final epoch = room.mediaEpoch;
         final native = player.videoPlayerController;
         if (native == null) break;
+        if (_buffering &&
+            !native.state.playing &&
+            hasWatchBufferForResume(
+              positionMs: player.positionInMilliseconds,
+              bufferedMs: native.state.buffer.inMilliseconds,
+              durationMs: native.state.duration.inMilliseconds,
+              rate: room.rate,
+            )) {
+          _buffering = false;
+          _forcePosition = true;
+          _reportStatus();
+        }
         final explicitSeek =
             room.revision != _lastAppliedRevision &&
             const {'seek', 'restart', 'select'}.contains(room.lastAction);

@@ -111,4 +111,20 @@ void main() {
     expect(client.room!.revision, 10);
     expect(client.room!.mediaEpoch, 3);
   });
+
+  test('paused decoder buffer recovery waits for real cache, including fast playback and EOF', () {
+    bool buffered(int end, {int position = 1000, double rate = 1}) =>
+        hasWatchBufferForResume(
+          positionMs: position,
+          bufferedMs: end,
+          durationMs: 100000,
+          rate: rate,
+        );
+    expect(buffered(0), isFalse);
+    expect(buffered(1250), isFalse);
+    expect(buffered(16000), isTrue);
+    expect(buffered(5000, rate: 3), isFalse);
+    expect(buffered(8000, rate: 3), isTrue);
+    expect(buffered(99950, position: 99500), isTrue);
+  });
 }

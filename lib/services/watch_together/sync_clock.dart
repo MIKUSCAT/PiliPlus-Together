@@ -53,3 +53,17 @@ bool shouldCorrectWatchPosition({
   if (!playing) return drift > 150;
   return drift > 650 && millisecondsSinceSeek >= 2000;
 }
+
+/// MPV may leave its buffering flag set while explicitly paused. Once the
+/// demuxer has enough data, resuming lets it clear that flag without making
+/// both participants wait for an event which requires playback to progress.
+bool hasWatchBufferForResume({
+  required int positionMs,
+  required int bufferedMs,
+  required int durationMs,
+  required double rate,
+}) {
+  if (bufferedMs <= positionMs) return false;
+  if (durationMs > 0 && bufferedMs >= durationMs - 150) return true;
+  return bufferedMs - positionMs >= 2000 * rate;
+}

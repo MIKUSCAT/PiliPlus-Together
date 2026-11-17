@@ -8,6 +8,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/playback_sync.dart';
 import 'package:PiliPlus/services/watch_together/client.dart';
+import 'package:PiliPlus/services/watch_together/playback_health.dart';
 import 'package:PiliPlus/services/watch_together/sync_clock.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -78,6 +79,8 @@ class WatchTogetherService
   bool _ready = false;
   bool _buffering = false;
   String? _playbackError;
+  final _nativeHealth = WatchPlaybackHealth();
+  bool _hasVideoFrame = false;
   final Set<String> _suspensions = {};
   int _panels = 0;
   Timer? _tick;
@@ -280,10 +283,19 @@ class WatchTogetherService
     _navigationSuppressed = false;
     player.syncDelegate = this;
     _ready = true;
+    _nativeHealth.reset();
+    _hasVideoFrame = false;
     _buffering = player.isBuffering.value;
     _forcePosition = true;
     _lastAppliedRevision = -1;
     final nativePlayer = player.videoPlayerController!;
+    unawaited(
+      player.videoController?.waitUntilFirstFrameRendered.then((_) {
+        if (ticket.generation != _loadGeneration || !controls(player)) return;
+        _hasVideoFrame = true;
+        unawaited(_synchronize());
+      }),
+    );
     _bufferSubscription = nativePlayer.stream.buffering.listen((buffering) {
       if (!controls(player)) return;
       _bufferTimer?.cancel();
@@ -300,9 +312,7 @@ class WatchTogetherService
     });
     _errorSubscription = nativePlayer.stream.error.listen((error) {
       if (!controls(player) || error.isEmpty) return;
-      _playbackError = '视频暂时无法播放，请重试或检查观看权限';
-      _ready = false;
-      _reportStatus();
+      _nativeHealth.recordError(client.localNowMs);
     });
     await _synchronize();
     _reportStatus();
@@ -390,13 +400,41 @@ class WatchTogetherService
             room == null ||
             player == null ||
             !controls(player) ||
-            !_ready ||
             player.processing) {
           break;
         }
         final epoch = room.mediaEpoch;
         final native = player.videoPlayerController;
         if (native == null) break;
+        if (_nativeHealth.hasError) {
+          final state = native.state;
+          final hasOutput =
+              _hasVideoFrame ||
+              (player.onlyPlayAudio.value &&
+                  state.audioParams.sampleRate != null);
+          final usable =
+              hasOutput &&
+              state.duration.inMilliseconds > 0 &&
+              (!state.buffering ||
+                  hasWatchBufferForResume(
+                    positionMs: state.position.inMilliseconds,
+                    bufferedMs: state.buffer.inMilliseconds,
+                    durationMs: state.duration.inMilliseconds,
+                    rate: room.rate,
+                  ));
+          if (_nativeHealth.update(nowMs: client.localNowMs, usable: usable)) {
+            _ready = !_nativeHealth.failed;
+            _playbackError = _ready ? null : '视频暂时无法播放，请重试或检查观看权限';
+            if (_ready) _forcePosition = true;
+            _reportStatus();
+          }
+        }
+        if (!_ready) {
+          if (_nativeHealth.failed && native.state.playing) {
+            await player.pause(sync: false);
+          }
+          break;
+        }
         if (_buffering &&
             !native.state.playing &&
             hasWatchBufferForResume(
@@ -561,8 +599,7 @@ class WatchTogetherService
         (_loadingKey == video.key ||
             _openingKey == video.key ||
             (_loadedVideo?.key == video.key &&
-                _loadedEpoch == client.room?.mediaEpoch &&
-                _ready))) {
+                _loadedEpoch == client.room?.mediaEpoch))) {
       return;
     }
     _openingKey = video.key;
@@ -640,6 +677,8 @@ class WatchTogetherService
     _activePageTag = _loadingKey = _openingKey = null;
     _localSelection = _ready = _navigationSuppressed = _buffering = false;
     _playbackError = null;
+    _nativeHealth.reset();
+    _hasVideoFrame = false;
     _soloRate = null;
     _suspensions.clear();
     _lastCompletedEpoch = -1;

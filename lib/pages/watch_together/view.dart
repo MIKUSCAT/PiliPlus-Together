@@ -98,9 +98,11 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
                     room != null &&
                     constraints.maxHeight - keyboard - 24 < 170;
                 if (compact) {
-                  return Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _composer(theme, compact: true),
+                  // Keep the composer in the same Column so opening the
+                  // keyboard cannot dispose its TextField and lose focus.
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [_composer(theme, compact: true)],
                   );
                 }
                 final lastMessageId = room?.messages.lastOrNull?.id;
@@ -555,6 +557,7 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
   }
 
   Widget _composer(ThemeData theme, {bool compact = false}) => Padding(
+    key: const ValueKey('watch-together-composer'),
     padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -566,6 +569,7 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
             icon: const Icon(Icons.close, size: 20),
           ),
         Expanded(
+          key: const ValueKey('watch-together-message'),
           child: TextField(
             controller: _message,
             enabled: widget.client.connected,

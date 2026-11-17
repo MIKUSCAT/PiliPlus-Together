@@ -199,6 +199,74 @@ void main() {
   }
 
   testWidgets(
+    'landscape keyboard transitions preserve focus, draft and selection',
+    (tester) async {
+      const size = Size(480, 360);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final keyboard = ValueNotifier<double>(0);
+      final client = PreviewWatchClient(
+        previewRoom: WatchRoom.fromJson(roomJson()),
+      );
+      addTearDown(keyboard.dispose);
+      addTearDown(client.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ValueListenableBuilder<double>(
+            valueListenable: keyboard,
+            builder: (context, inset, child) => MediaQuery(
+              data: MediaQueryData(
+                size: size,
+                viewInsets: EdgeInsets.only(bottom: inset),
+              ),
+              child: child!,
+            ),
+            child: Scaffold(
+              body: WatchTogetherPanel(
+                client: client,
+                onCreate: () async {},
+                onJoin: (_) async {},
+                onConfigure: ({required serverUrl, required nickname}) async {},
+                onLeave: () async {},
+                onResynchronize: () async {},
+                onResume: () async {},
+                onOpenVideo: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), '一起看这段');
+      final field = tester.widget<EditableText>(find.byType(EditableText));
+      field.controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 3,
+      );
+
+      keyboard.value = 240;
+      await tester.pumpAndSettle();
+      expect(field.focusNode.hasFocus, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(field.controller.text, '一起看这段');
+      expect(
+        field.controller.selection,
+        const TextSelection(baseOffset: 1, extentOffset: 3),
+      );
+      tester.testTextInput.enterText('横屏也能继续输入');
+      await tester.pump();
+      expect(find.text('横屏也能继续输入'), findsOneWidget);
+
+      keyboard.value = 0;
+      await tester.pumpAndSettle();
+      expect(field.focusNode.hasFocus, isTrue);
+      expect(find.text('横屏也能继续输入'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'invalid room code stays in the dialog and explains how to fix it',
     (tester) async {
       await mount(

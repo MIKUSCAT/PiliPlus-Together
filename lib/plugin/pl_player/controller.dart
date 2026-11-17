@@ -125,6 +125,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   final RxBool showControls = false.obs;
 
+  // The room's intent stays playing while either native player is buffering.
+  // Null restores the normal local player controls after leaving the room.
+  final RxnBool syncedPlayingIntent = RxnBool();
+
   final RxBool showBrightnessStatus = false.obs;
 
   final RxBool longPressStatus = false.obs;
@@ -1425,6 +1429,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   // 双击播放、暂停
   Future<void> onDoubleTapCenter() async {
+    if (syncDelegate?.handlePlaybackAction(.toggle) ?? false) return;
     if (!isLive && isCompleted) {
       await play(repeat: true, hideControls: false);
     } else if (videoPlayerController!.state.playing) {

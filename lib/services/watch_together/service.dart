@@ -273,6 +273,7 @@ class WatchTogetherService
     _loadTimeout?.cancel();
     if (_player != null && !identical(_player, player)) {
       _player!.syncDelegate = null;
+      _player!.syncedPlayingIntent.value = null;
     }
     _soloRate ??= player.playbackSpeed;
     _player = player;
@@ -282,6 +283,7 @@ class WatchTogetherService
     _playbackError = null;
     _navigationSuppressed = false;
     player.syncDelegate = this;
+    player.syncedPlayingIntent.value = client.room!.desiredPlaying;
     _ready = true;
     _nativeHealth.reset();
     _hasVideoFrame = false;
@@ -344,6 +346,12 @@ class WatchTogetherService
       return;
     }
     _wasJoined = true;
+    final activePlayer = _player;
+    if (activePlayer != null) {
+      activePlayer.syncedPlayingIntent.value = controls(activePlayer)
+          ? client.room?.desiredPlaying
+          : null;
+    }
     _tick ??= Timer.periodic(const Duration(milliseconds: 750), (_) {
       if (client.connected) {
         unawaited(_synchronize());
@@ -516,6 +524,15 @@ class WatchTogetherService
   }) {
     final player = _player;
     if (player == null || !controls(player)) return false;
+    if (action == SyncedPlaybackAction.toggle) {
+      final room = client.room!;
+      final duration = room.video?.durationMs ?? 0;
+      action = room.desiredPlaying
+          ? SyncedPlaybackAction.pause
+          : duration > 0 && room.positionAt(client.serverNowMs) >= duration - 50
+          ? SyncedPlaybackAction.restart
+          : SyncedPlaybackAction.play;
+    }
     final values = <String, dynamic>{
       if (position != null)
         'positionMs': position.inMilliseconds.clamp(
@@ -667,6 +684,7 @@ class WatchTogetherService
     final player = _player;
     if (player != null) {
       player.syncDelegate = null;
+      player.syncedPlayingIntent.value = null;
       if (_soloRate case final rate?) {
         unawaited(player.setPlaybackSpeed(rate, sync: false));
       }

@@ -1,4 +1,4 @@
-enum SyncedPlaybackAction { play, pause, seek, rate, restart }
+enum SyncedPlaybackAction { play, pause, seek, rate, restart, toggle }
 
 /// A room can handle user intent before the native player changes. Applying a
 /// remote state always bypasses this hook, so state observations never echo.

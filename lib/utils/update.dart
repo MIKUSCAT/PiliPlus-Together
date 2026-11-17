@@ -37,7 +37,12 @@ abstract final class Update {
       final data = res.data[0];
       final int latest =
           DateTime.parse(data['created_at']).millisecondsSinceEpoch ~/ 1000;
-      if (BuildConfig.buildTime >= latest) {
+      // A release may be drafted or published after its APK was built.
+      // Its timestamp alone must not advertise the installed version again.
+      final isCurrentVersion =
+          data['tag_name'] == BuildConfig.versionName ||
+          data['tag_name'] == 'v${BuildConfig.versionName}';
+      if (isCurrentVersion || BuildConfig.buildTime >= latest) {
         if (!isAuto) {
           SmartDialog.showToast('已是最新版本');
         }

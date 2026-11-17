@@ -129,6 +129,16 @@ test('invalid numeric values are rejected without changing the timeline', () => 
   assert.equal(room.revision, revision);
 });
 
+test('a video selected before loading learns duration from the first ready player', () => {
+  const { room, a, b, command, status } = fixture();
+  command(a, 'select', { video: { kind: 'ugc', bvid: 'BV1xx411c7mD', cid: 1, title: '测试', durationMs: 0 } });
+  status(a, { durationMs: 120000 });
+  assert.equal(room.video.durationMs, 120000);
+  status(b, { durationMs: 10000 });
+  assert.equal(room.playing, false);
+  assert.match(room.members.get(b.member.id).error, /时长不同/);
+});
+
 test('host departure transfers automatic advancement and holds the remaining member', () => {
   const { room, a, b, start } = fixture();
   start(); room.leave(a.member.id);

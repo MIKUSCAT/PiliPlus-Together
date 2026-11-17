@@ -792,7 +792,8 @@ class VideoDetailController extends GetxController
   }
 
   Future<void>? initPlayerIfNeeded(bool autoFullScreenFlag) {
-    if (_autoPlay.value ||
+    if (WatchTogetherService.active ||
+        _autoPlay.value ||
         (plPlayerController.preInitPlayer && !plPlayerController.processing) &&
             (isFileSource
                 ? true

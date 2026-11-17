@@ -14,6 +14,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final fontPath = Platform.environment['PILIPLUS_QA_FONT'];
   setUpAll(() async {
+    await (FontLoader(
+      'MaterialIcons',
+    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
     if (fontPath != null && File(fontPath).existsSync()) {
       final bytes = await File(fontPath).readAsBytes();
       await (FontLoader(

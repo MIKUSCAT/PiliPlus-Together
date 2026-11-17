@@ -246,6 +246,10 @@ export class Room {
     const suspended = input.suspended === true;
     let error = typeof input.error === 'string' ? input.error.slice(0, 160) : null;
     const durationMs = number(input.durationMs ?? 0, 0, 7 * 24 * 3600_000);
+    if (ready && durationMs > 0 && this.video && this.video.durationMs === 0) {
+      this.freeze();
+      this.video = { ...this.video, durationMs };
+    }
     if (ready && durationMs > 0 && this.video?.durationMs &&
       Math.abs(durationMs - this.video.durationMs) > 3000) {
       error = '视频时长不同，请确认双方账号都能完整观看';

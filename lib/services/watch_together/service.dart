@@ -184,6 +184,8 @@ class WatchTogetherService
           client.room!.positionAt(client.serverNowMs),
         ),
       );
+    } else if (controller.videoUrl == null) {
+      await controller.queryVideoUrl(fromReset: true);
     } else {
       await controller.playerInit(autoplay: false);
     }

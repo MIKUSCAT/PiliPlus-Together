@@ -26,6 +26,7 @@ import 'package:PiliPlus/pages/danmaku/view.dart';
 import 'package:PiliPlus/pages/episode_panel/view.dart';
 import 'package:PiliPlus/pages/video/ai_conclusion/view.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
+import 'package:PiliPlus/pages/watch_together/entry.dart';
 import 'package:PiliPlus/services/watch_together/service.dart';
 import 'package:PiliPlus/pages/video/introduction/local/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/local/view.dart';
@@ -1169,6 +1170,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       shadows: shadows,
     ),
     itemBuilder: (BuildContext context) => <PopupMenuEntry>[
+      if (videoDetailController.watchVideo != null)
+        PopupMenuItem(
+          onTap: () => WatchTogetherEntry.show(
+            this.context,
+            controller: videoDetailController,
+          ),
+          child: const Text('一起看'),
+        ),
       PopupMenuItem(
         onTap: introController.viewLater,
         child: const Text('稍后再看'),

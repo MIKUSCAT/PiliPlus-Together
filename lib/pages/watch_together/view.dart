@@ -47,7 +47,8 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
   final _scroll = ScrollController();
   bool _working = false;
   String? _actionError;
-  int _messageCount = 0;
+  String? _lastRoomCode;
+  String? _lastMessageId;
 
   @override
   void dispose() {
@@ -92,10 +93,24 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
               builder: (context, _) {
                 final client = widget.client;
                 final room = client.room;
-                if ((room?.messages.length ?? 0) != _messageCount) {
+                final compact =
+                    client.joined &&
+                    room != null &&
+                    constraints.maxHeight - keyboard - 24 < 170;
+                if (compact) {
+                  return Align(
+                    alignment: Alignment.bottomCenter,
+                    child: _composer(theme, compact: true),
+                  );
+                }
+                final lastMessageId = room?.messages.lastOrNull?.id;
+                if (_lastRoomCode != room?.code) {
+                  _lastRoomCode = room?.code;
+                  _lastMessageId = lastMessageId;
+                } else if (lastMessageId != _lastMessageId) {
                   final nearBottom =
                       !_scroll.hasClients || _scroll.position.extentAfter < 100;
-                  _messageCount = room?.messages.length ?? 0;
+                  _lastMessageId = lastMessageId;
                   if (nearBottom) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted && _scroll.hasClients) {
@@ -539,11 +554,17 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
     );
   }
 
-  Widget _composer(ThemeData theme) => Padding(
+  Widget _composer(ThemeData theme, {bool compact = false}) => Padding(
     padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        if (compact)
+          IconButton(
+            tooltip: '收起',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.close, size: 20),
+          ),
         Expanded(
           child: TextField(
             controller: _message,

@@ -112,6 +112,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   int _playerCount = 0;
 
   late double lastPlaybackSpeed = 1.0;
+  double? _togetherLongPressRate;
   final RxDouble _playbackSpeed = Pref.playSpeedDefault.obs;
   late final RxDouble _longPressSpeed = Pref.longPressSpeedDefault.obs;
 
@@ -1404,6 +1405,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       if (playerStatus.isPlaying) {
         longPressStatus.value = val;
         HapticFeedback.lightImpact();
+        if (syncDelegate != null) _togetherLongPressRate = playbackSpeed;
         await setPlaybackSpeed(
           enableAutoLongPressSpeed ? playbackSpeed * 2 : longPressSpeed,
         );
@@ -1411,7 +1413,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     } else {
       // if (kDebugMode) debugPrint('$playbackSpeed');
       longPressStatus.value = val;
-      await setPlaybackSpeed(lastPlaybackSpeed);
+      final restoreSpeed = _togetherLongPressRate ?? lastPlaybackSpeed;
+      _togetherLongPressRate = null;
+      await setPlaybackSpeed(restoreSpeed);
     }
   }
 

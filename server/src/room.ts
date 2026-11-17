@@ -204,7 +204,7 @@ export class Room {
     switch (action) {
       case 'select': nextVideo = parseVideo(input.video); break;
       case 'seek': value = number(input.positionMs, 0, this.video?.durationMs || 7 * 24 * 3600_000); break;
-      case 'rate': value = number(input.rate, 0.25, 4); break;
+      case 'rate': value = number(input.rate, 0.1, 16); break;
       case 'chat': message = text(input.text, 500, '消息'); break;
       case 'play': case 'pause': case 'restart': break;
       default: throw new ProtocolError('invalid_message', '无法识别这个播放操作');

@@ -603,177 +603,200 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
     }
   }
 
-  Future<void> _showSettings() async {
-    final server = TextEditingController(text: widget.client.serverUrl);
-    final name = TextEditingController(text: widget.client.nickname);
-    String? error;
-    bool saving = false;
+  Future<void> _showSettings() => showDialog<void>(
+    context: context,
+    builder: (_) => _WatchSettingsDialog(
+      client: widget.client,
+      onConfigure: widget.onConfigure,
+    ),
+  );
+
+  Future<void> _showJoin() async {
+    final joined = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _WatchJoinDialog(onJoin: widget.onJoin),
+    );
+    if (joined == true && mounted && widget.client.room?.video != null) {
+      Navigator.of(context).pop();
+    }
+  }
+}
+
+// Text controllers belong to the dialog route, including its closing animation.
+// A showDialog future completes on pop, before those widgets are disposed.
+class _WatchSettingsDialog extends StatefulWidget {
+  const _WatchSettingsDialog({required this.client, required this.onConfigure});
+  final WatchTogetherClient client;
+  final ConfigureWatchTogether onConfigure;
+
+  @override
+  State<_WatchSettingsDialog> createState() => _WatchSettingsDialogState();
+}
+
+class _WatchSettingsDialogState extends State<_WatchSettingsDialog> {
+  late final _server = TextEditingController(text: widget.client.serverUrl);
+  late final _name = TextEditingController(text: widget.client.nickname);
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _server.dispose();
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, update) {
-            final editable = !widget.client.joined;
-            return AlertDialog(
-              title: const Text('一起看连接设置'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: server,
-                      enabled: editable && !saving,
-                      autocorrect: false,
-                      keyboardType: TextInputType.url,
-                      decoration: const InputDecoration(
-                        labelText: '服务地址',
-                        hintText: 'https://watch.example.com',
-                        helperText: '填写部署后提供的地址',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: name,
-                      enabled: editable && !saving,
-                      maxLength: 24,
-                      decoration: const InputDecoration(
-                        labelText: '房间昵称',
-                        counterText: '',
-                      ),
-                    ),
-                    if (!editable)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 16),
-                        child: Text(
-                          '退出房间后可以修改连接设置',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    if (error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('取消'),
-                ),
-                TextButton(
-                  onPressed: !editable || saving
-                      ? null
-                      : () async {
-                          update(() {
-                            saving = true;
-                            error = null;
-                          });
-                          try {
-                            await widget.onConfigure(
-                              serverUrl: server.text,
-                              nickname: name.text,
-                            );
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop();
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              update(() {
-                                saving = false;
-                                error = e.toString();
-                              });
-                            }
-                          }
-                        },
-                  child: const Text('保存'),
-                ),
-              ],
-            );
-          },
-        ),
-      );
-    } finally {
-      server.dispose();
-      name.dispose();
+      await widget.onConfigure(serverUrl: _server.text, nickname: _name.text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = error.toString();
+        });
+      }
     }
   }
 
-  Future<void> _showJoin() async {
-    final code = TextEditingController();
-    String? error;
-    bool joining = false;
-    bool joined = false;
-    try {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, update) => AlertDialog(
-            title: const Text('加入一起看'),
-            content: TextField(
-              controller: code,
-              autofocus: true,
-              enabled: !joining,
-              textCapitalization: TextCapitalization.characters,
-              autocorrect: false,
-              decoration: InputDecoration(
-                labelText: '房间码',
-                hintText: '输入 8 位房间码',
-                helperText: '也可以粘贴完整的邀请信息',
-                errorText: error,
+  @override
+  Widget build(BuildContext context) {
+    final editable = !widget.client.joined;
+    return PopScope(
+      canPop: !_saving,
+      child: AlertDialog(
+        title: const Text('一起看连接设置'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _server,
+                enabled: editable && !_saving,
+                autocorrect: false,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: '服务地址',
+                  hintText: 'https://watch.example.com',
+                  helperText: '填写部署后提供的地址',
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: joining
-                    ? null
-                    : () => Navigator.of(dialogContext).pop(),
-                child: const Text('取消'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _name,
+                enabled: editable && !_saving,
+                maxLength: 24,
+                decoration: const InputDecoration(
+                  labelText: '房间昵称',
+                  counterText: '',
+                ),
               ),
-              TextButton(
-                onPressed: joining
-                    ? null
-                    : () async {
-                        update(() {
-                          joining = true;
-                          error = null;
-                        });
-                        try {
-                          await widget.onJoin(code.text);
-                          joined = true;
-                          if (dialogContext.mounted) {
-                            Navigator.of(dialogContext).pop();
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            update(() {
-                              joining = false;
-                              error = e.toString();
-                            });
-                          }
-                        }
-                      },
-                child: Text(joining ? '正在加入…' : '加入'),
-              ),
+              if (!editable)
+                const Padding(
+                  padding: EdgeInsets.only(top: 16),
+                  child: Text('退出房间后可以修改连接设置', style: TextStyle(fontSize: 12)),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      );
-      if (joined && mounted && widget.client.room?.video != null) {
-        Navigator.of(context).pop();
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: !editable || _saving ? null : _save,
+            child: Text(_saving ? '正在保存…' : '保存'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WatchJoinDialog extends StatefulWidget {
+  const _WatchJoinDialog({required this.onJoin});
+  final Future<void> Function(String code) onJoin;
+
+  @override
+  State<_WatchJoinDialog> createState() => _WatchJoinDialogState();
+}
+
+class _WatchJoinDialogState extends State<_WatchJoinDialog> {
+  final _code = TextEditingController();
+  String? _error;
+  bool _joining = false;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _join() async {
+    setState(() {
+      _joining = true;
+      _error = null;
+    });
+    try {
+      await widget.onJoin(_code.text);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _joining = false;
+          _error = error.toString();
+        });
       }
-    } finally {
-      code.dispose();
     }
   }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_joining,
+    child: AlertDialog(
+      title: const Text('加入一起看'),
+      content: TextField(
+        controller: _code,
+        autofocus: true,
+        enabled: !_joining,
+        textCapitalization: TextCapitalization.characters,
+        autocorrect: false,
+        decoration: InputDecoration(
+          labelText: '房间码',
+          hintText: '输入 8 位房间码',
+          helperText: '也可以粘贴完整的邀请信息',
+          errorText: _error,
+          errorMaxLines: 3,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _joining ? null : () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: _joining ? null : _join,
+          child: Text(_joining ? '正在加入…' : '加入'),
+        ),
+      ],
+    ),
+  );
 }

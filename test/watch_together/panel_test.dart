@@ -78,11 +78,13 @@ void main() {
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('panel-preview')),
     );
-    final image = await boundary.toImage();
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    await Directory(output).create(recursive: true);
-    await File('$output/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
-    image.dispose();
+    await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await Directory(output).create(recursive: true);
+      await File('$output/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
   }
 
   testWidgets('welcome follows the app theme and exposes both room actions', (
@@ -105,6 +107,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('服务地址'), findsOneWidget);
     expect(find.text('房间昵称'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.enterText(
+      find.byType(TextField).first,
+      'https://watch.example.com',
+    );
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('一起看连接设置'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

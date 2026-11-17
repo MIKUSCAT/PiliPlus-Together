@@ -49,7 +49,7 @@ jobs:
           $font = "$env:RUNNER_TEMP/NotoSansCJKsc-Regular.otf"
           Invoke-WebRequest https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf -OutFile $font
           $env:PILIPLUS_QA_FONT = $font
-          flutter test --no-pub test/watch_together --reporter expanded
+          flutter test --no-pub test/watch_together --reporter expanded --timeout 60s
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()

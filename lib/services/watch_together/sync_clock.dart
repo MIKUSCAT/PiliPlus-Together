@@ -63,7 +63,8 @@ bool hasWatchBufferForResume({
   required int durationMs,
   required double rate,
 }) {
-  if (bufferedMs <= positionMs) return false;
+  if (bufferedMs <= 0) return false;
   if (durationMs > 0 && bufferedMs >= durationMs - 150) return true;
+  if (bufferedMs <= positionMs) return false;
   return bufferedMs - positionMs >= 2000 * rate;
 }

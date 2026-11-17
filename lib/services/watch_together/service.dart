@@ -416,7 +416,7 @@ class WatchTogetherService
         if (target < player.durationInMilliseconds - 2000) {
           _lastCompletedEpoch = -1;
         }
-        if (!_buffering &&
+        if ((!_buffering || explicitSeek || _forcePosition) &&
             shouldCorrectWatchPosition(
               targetMs: target,
               actualMs: player.positionInMilliseconds,

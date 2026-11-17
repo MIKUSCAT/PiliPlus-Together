@@ -126,5 +126,6 @@ void main() {
     expect(buffered(5000, rate: 3), isFalse);
     expect(buffered(8000, rate: 3), isTrue);
     expect(buffered(99950, position: 99500), isTrue);
+    expect(buffered(100000, position: 100000), isTrue);
   });
 }

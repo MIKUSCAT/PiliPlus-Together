@@ -115,7 +115,7 @@ class VideoDetailController extends GetxController
       bvid: bvid,
       cid: cid.value,
       title: title.isEmpty ? bvid : title,
-      cover: cover.value,
+      cover: cover.value.replaceFirst(RegExp(r'^http:'), 'https:'),
       durationMs: _watchDurationMs,
       epId: epId,
       seasonId: seasonId,

@@ -87,7 +87,8 @@ class PgcIntroController extends CommonIntroController {
 
     super.onInit();
 
-    seasonIndex = pgcItem.seasons?.indexWhere((e) => e.seasonId == seasonId) ?? 0;
+    seasonIndex =
+        pgcItem.seasons?.indexWhere((e) => e.seasonId == seasonId) ?? 0;
     _updateEpisodeIndex(cid.value);
 
     _onGetPgcInfo();
@@ -294,7 +295,8 @@ class PgcIntroController extends CommonIntroController {
       _updateEpisodeIndex(cid);
 
       videoDetailCtr
-        ..plPlayerController.pause()
+        ..watchVideoWillChange(bvid: bvid, cid: cid, epId: epId)
+        ..plPlayerController.pause(sync: false)
         ..makeHeartBeat()
         ..onReset()
         ..epId = epId

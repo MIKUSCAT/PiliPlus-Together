@@ -17,6 +17,7 @@ import 'package:PiliPlus/models_new/later/list.dart';
 import 'package:PiliPlus/models_new/sub/sub/data.dart';
 import 'package:PiliPlus/models_new/sub/sub/list.dart';
 import 'package:PiliPlus/pages/common/common_list_controller.dart';
+import 'package:PiliPlus/pages/watch_together/entry.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
@@ -78,6 +79,13 @@ class MineController extends GetxController with AccountMixin {
         if (isLogin) {
           Get.toNamed('/later');
         }
+      },
+    ),
+    (
+      icon: Icons.group_outlined,
+      title: '一起看',
+      onTap: () {
+        if (Get.context case final context?) WatchTogetherEntry.show(context);
       },
     ),
   ];

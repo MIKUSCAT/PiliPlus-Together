@@ -27,6 +27,8 @@ import 'package:PiliPlus/pages/setting/models/play_settings.dart'
 import 'package:PiliPlus/pages/setting/widgets/popup_item.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
+import 'package:PiliPlus/pages/watch_together/entry.dart';
+import 'package:PiliPlus/services/watch_together/service.dart';
 import 'package:PiliPlus/pages/video/introduction/local/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/pgc/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
@@ -325,6 +327,7 @@ class HeaderControlState extends State<HeaderControl>
   @override
   late final PlPlayerController plPlayerController = widget.controller;
   late final VideoDetailController videoDetailCtr = widget.videoDetailCtr;
+  late final WatchTogetherService _together = WatchTogetherService.instance;
   late final PlayUrlModel videoInfo = videoDetailCtr.data;
   static const TextStyle subTitleStyle = TextStyle(fontSize: 12);
   static const TextStyle titleStyle = TextStyle(fontSize: 14);
@@ -373,6 +376,27 @@ class HeaderControlState extends State<HeaderControl>
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 14),
               children: [
+                if (videoDetailCtr.watchVideo != null)
+                  ListTile(
+                    dense: true,
+                    onTap: () {
+                      Get.back();
+                      WatchTogetherEntry.show(
+                        this.context,
+                        controller: videoDetailCtr,
+                        theme: this.theme,
+                      );
+                    },
+                    leading: const Icon(Icons.group_outlined, size: 20),
+                    title: const Text('一起看', style: titleStyle),
+                    subtitle: WatchTogetherService.active
+                        ? Text(
+                            WatchTogetherService.maybe!.client.room?.status ??
+                                '正在连接',
+                            style: subTitleStyle,
+                          )
+                        : null,
+                  ),
                 ListTile(
                   dense: true,
                   onTap: () {
@@ -1903,6 +1927,29 @@ class HeaderControlState extends State<HeaderControl>
                       ),
                     ),
                   ),
+                AnimatedBuilder(
+                  animation: _together.client,
+                  builder: (context, _) => !_together.client.joined
+                      ? const SizedBox.shrink()
+                      : SizedBox(
+                          width: btnWidth,
+                          height: btnHeight,
+                          child: IconButton(
+                            tooltip: _together.client.room?.status ?? '一起看',
+                            style: btnStyle,
+                            onPressed: () => WatchTogetherEntry.show(
+                              context,
+                              controller: videoDetailCtr,
+                              theme: theme,
+                            ),
+                            icon: const Icon(
+                              Icons.group_outlined,
+                              size: 19,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                ),
                 SizedBox(
                   width: btnWidth,
                   height: btnHeight,

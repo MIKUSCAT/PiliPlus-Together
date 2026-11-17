@@ -37,6 +37,12 @@ class AudioSessionHandler {
           }
         case .pause:
         case .unknown:
+          if (player?.syncDelegate != null) {
+            // Even an already waiting room must remain suspended during a call.
+            _shouldResume = true;
+            player!.pause(isInterrupt: true);
+            return;
+          }
           final isAudioPlaying = videoPlayerServiceHandler?.isPlaying;
           if (isAudioPlaying != null) {
             if (isAudioPlaying()) {
@@ -49,6 +55,16 @@ class AudioSessionHandler {
           }
       }
     } else {
+      final togetherPlayer = PlPlayerController.instance;
+      if (_shouldResume &&
+          togetherPlayer?.syncDelegate != null &&
+          (event.type == AudioInterruptionType.pause ||
+              event.type == AudioInterruptionType.unknown)) {
+        _shouldResume = false;
+        // The room's explicit paused/playing intent determines whether to resume.
+        togetherPlayer!.resumeAfterInterruption();
+        return;
+      }
       switch (event.type) {
         case .duck:
           final player = PlPlayerController.instance;
@@ -57,7 +73,7 @@ class AudioSessionHandler {
           if (_shouldResume) {
             _shouldResume = false;
             videoPlayerServiceHandler?.onPlay?.call() ??
-                PlPlayerController.instance?.play();
+                PlPlayerController.instance?.resumeAfterInterruption();
           }
         case .unknown:
       }

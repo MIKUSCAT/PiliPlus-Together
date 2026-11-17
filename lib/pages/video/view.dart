@@ -26,6 +26,7 @@ import 'package:PiliPlus/pages/danmaku/view.dart';
 import 'package:PiliPlus/pages/episode_panel/view.dart';
 import 'package:PiliPlus/pages/video/ai_conclusion/view.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
+import 'package:PiliPlus/services/watch_together/service.dart';
 import 'package:PiliPlus/pages/video/introduction/local/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/local/view.dart';
 import 'package:PiliPlus/pages/video/introduction/pgc/controller.dart';
@@ -243,6 +244,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     if (status.isCompleted) {
+      final together = WatchTogetherService.maybe;
+      if (plPlayerController != null &&
+          together != null &&
+          !together.mayAdvanceAfterCompletion(plPlayerController!)) {
+        return;
+      }
       try {
         if (videoDetailController
                 .steinEdgeInfo

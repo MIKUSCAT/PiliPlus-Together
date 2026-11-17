@@ -57,6 +57,7 @@ mixin BlockMixin on GetxController {
 
   bool get isUgc;
   bool get isFileSource => false;
+  bool get allowAutoSkip => true;
   late final isBlock = isUgc || !blockConfig.enablePgcSkip;
 
   Future<void> querySponsorBlock({
@@ -88,6 +89,7 @@ mixin BlockMixin on GetxController {
   }
 
   void _onPosChanged(Duration position) {
+    if (!allowAutoSkip) return;
     final currentPos = position.inSeconds;
     if (currentPos != _lastBlockPos) {
       _lastBlockPos = currentPos;

@@ -27,6 +27,7 @@ import 'package:PiliPlus/models/common/video/source_type.dart';
 import 'package:PiliPlus/models/common/video/video_decode_type.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
+import 'package:PiliPlus/models/watch_together.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/media_list/media_list.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
@@ -66,6 +67,7 @@ import 'package:PiliPlus/utils/subtitle_utils.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
+import 'package:PiliPlus/services/watch_together/service.dart';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart' show Options;
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart'
@@ -92,6 +94,50 @@ class VideoDetailController extends GetxController
   int? pgcType;
   late final String heroTag;
   late final RxString cover;
+
+  int _watchDurationMs = 0;
+
+  WatchVideo? get watchVideo {
+    if (isFileSource || videoType == VideoType.pugv || steinEdgeInfo != null) {
+      return null;
+    }
+    var title = args['title'] as String? ?? bvid;
+    try {
+      final introTitle = isUgc
+          ? ugcIntroCtr.videoDetail.value.title
+          : pgcIntroCtr.videoDetail.value.title;
+      if (introTitle != null && introTitle.isNotEmpty) title = introTitle;
+    } catch (_) {
+      /* The introduction is still being loaded. */
+    }
+    return WatchVideo(
+      kind: isUgc ? 'ugc' : 'pgc',
+      bvid: bvid,
+      cid: cid.value,
+      title: title.isEmpty ? bvid : title,
+      cover: cover.value,
+      durationMs: _watchDurationMs,
+      epId: epId,
+      seasonId: seasonId,
+      pgcType: pgcType,
+    );
+  }
+
+  void watchVideoWillChange({
+    required String bvid,
+    required int cid,
+    int? epId,
+  }) {
+    if (!WatchTogetherService.active) return;
+    final key = isFileSource || videoType == VideoType.pugv
+        ? null
+        : '${isUgc ? 'ugc' : 'pgc'}:$bvid:$cid:${epId ?? 0}';
+    WatchTogetherService.maybe?.videoPageOpened(heroTag, key);
+  }
+
+  @override
+  bool get allowAutoSkip =>
+      !WatchTogetherService.active || WatchTogetherService.maybe!.client.isHost;
 
   // 视频类型 默认投稿视频
   late final VideoType videoType;
@@ -421,6 +467,10 @@ class VideoDetailController extends GetxController
     sourceType = args['sourceType'] ?? SourceType.normal;
     isFileSource = sourceType == SourceType.file;
     isPlayAll = sourceType != SourceType.normal && !isFileSource;
+    if (WatchTogetherService.active) {
+      _autoPlay.value = true;
+      watchVideoWillChange(bvid: bvid, cid: cid.value, epId: epId);
+    }
     if (isFileSource) {
       initFileSource(args['entry']);
     } else if (isPlayAll) {
@@ -758,9 +808,25 @@ class VideoDetailController extends GetxController
     bool? autoplay,
     bool autoFullScreenFlag = false,
   }) async {
+    _watchDurationMs = data.timeLength ?? 0;
+    final together = WatchTogetherService.maybe;
+    final watchMedia = watchVideo;
+    WatchLoadTicket? ticket;
+    if (WatchTogetherService.active) {
+      if (watchMedia == null) {
+        together!.videoLoadFailed(heroTag);
+        return;
+      }
+      ticket = await together!.prepareVideo(watchMedia, heroTag);
+      if (ticket == null && WatchTogetherService.active) return;
+    }
     Duration? seek = defaultST ?? playedTime;
-    if (seek == .zero) seek = null;
-    seek ??= getFirstSegment();
+    if (ticket != null) {
+      seek = Duration(milliseconds: ticket.positionMs);
+    } else {
+      if (seek == .zero) seek = null;
+      seek ??= getFirstSegment();
+    }
     await plPlayerController.setDataSource(
       isFileSource
           ? FileSource(
@@ -781,7 +847,7 @@ class VideoDetailController extends GetxController
       aid: aid,
       bvid: bvid,
       cid: cid.value,
-      autoplay: autoplay ?? _autoPlay.value,
+      autoplay: ticket == null ? autoplay ?? _autoPlay.value : false,
       epid: isUgc ? null : epId,
       seasonId: isUgc ? null : seasonId,
       pgcType: isUgc ? null : pgcType,
@@ -798,6 +864,10 @@ class VideoDetailController extends GetxController
     );
 
     if (isClosed) return;
+
+    if (ticket != null && watchMedia != null) {
+      await together!.attachPlayer(watchMedia, plPlayerController, ticket);
+    }
 
     if (plPlayerController.enableBlock) {
       initSkip();
@@ -870,6 +940,9 @@ class VideoDetailController extends GetxController
     isQuerying = true;
     try {
       await _queryVideoUrl(fromReset, autoFullScreenFlag);
+      if (videoUrl == null) {
+        WatchTogetherService.maybe?.videoLoadFailed(heroTag);
+      }
     } finally {
       isQuerying = false;
     }
@@ -1291,6 +1364,7 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    WatchTogetherService.maybe?.videoPageClosed(heroTag);
     cid.close();
     if (isFileSource) {
       cacheLocalProgress();
@@ -1313,6 +1387,7 @@ class VideoDetailController extends GetxController
     }
 
     playedTime = null;
+    _watchDurationMs = 0;
     defaultST = null;
     videoUrl = null;
     audioUrl = null;

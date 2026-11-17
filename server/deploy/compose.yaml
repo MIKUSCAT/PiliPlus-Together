@@ -1,0 +1,21 @@
+services:
+  together:
+    image: piliplus-together-server:1.0.0
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      MAX_ROOMS: ${MAX_ROOMS:-100}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

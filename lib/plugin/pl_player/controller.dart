@@ -26,6 +26,7 @@ import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/plugin/pl_player/models/playback_sync.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
@@ -80,6 +81,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   static PlPlayerController? _instance;
 
   PlayerStatus playerStatus = .paused;
+
+  PlaybackSyncDelegate? syncDelegate;
 
   final Rx<DataStatus> dataStatus = Rx(.none);
 
@@ -976,7 +979,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (_videoPlayerController != null) {
       final speed = isLive ? 1.0 : playbackSpeed;
       if (_videoPlayerController!.state.rate != speed) {
-        await setPlaybackSpeed(speed);
+        await setPlaybackSpeed(speed, sync: false);
       }
     }
     _initVideoFit();
@@ -1180,8 +1183,13 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   /// 跳转至指定位置
-  Future<void> seekTo(Duration position) async {
+  Future<void> seekTo(Duration position, {bool sync = true}) async {
     if (_playerCount == 0) return;
+    if (sync &&
+        (syncDelegate?.handlePlaybackAction(.seek, position: position) ??
+            false)) {
+      return;
+    }
 
     _heartDuration = position.inSeconds;
 
@@ -1195,7 +1203,11 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   /// 设置倍速
-  Future<void> setPlaybackSpeed(double speed) async {
+  Future<void> setPlaybackSpeed(double speed, {bool sync = true}) async {
+    if (sync &&
+        (syncDelegate?.handlePlaybackAction(.rate, rate: speed) ?? false)) {
+      return;
+    }
     lastPlaybackSpeed = playbackSpeed;
 
     if (speed == _videoPlayerController?.state.rate) return;
@@ -1216,13 +1228,22 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   /// 播放视频
-  Future<void> play({bool repeat = false, bool hideControls = true}) async {
+  Future<void> play({
+    bool repeat = false,
+    bool hideControls = true,
+    bool sync = true,
+  }) async {
     if (_playerCount == 0) return;
+    if (sync &&
+        (syncDelegate?.handlePlaybackAction(repeat ? .restart : .play) ??
+            false)) {
+      return;
+    }
     // 播放时自动隐藏控制条
     if (hideControls) controls = false;
     // repeat为true，将从头播放
     if (repeat) {
-      await seekTo(Duration.zero);
+      await seekTo(Duration.zero, sync: false);
     }
 
     await _videoPlayerController?.play();
@@ -1233,13 +1254,42 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   /// 暂停播放
-  Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
+  Future<void> pause({
+    bool notify = true,
+    bool isInterrupt = false,
+    bool sync = true,
+  }) async {
+    if (sync && isInterrupt && syncDelegate != null) {
+      syncDelegate!.setPlaybackSuspended(true, reason: 'audio');
+    } else if (sync &&
+        notify &&
+        (syncDelegate?.handlePlaybackAction(.pause) ?? false)) {
+      return;
+    }
     await _videoPlayerController?.pause();
     playerStatus = .paused;
 
     // 主动暂停时让出音频焦点
     if (!isInterrupt) {
       audioSessionHandler?.setActive(false);
+    }
+  }
+
+  Future<void> resumeAfterInterruption() async {
+    if (syncDelegate case final delegate?) {
+      delegate.setPlaybackSuspended(false, reason: 'audio');
+    } else {
+      await play();
+    }
+  }
+
+  Future<void> setPlaybackSuspended(bool suspended) async {
+    if (syncDelegate case final delegate?) {
+      delegate.setPlaybackSuspended(suspended);
+    } else if (suspended) {
+      await pause();
+    } else {
+      await play();
     }
   }
 
@@ -1372,8 +1422,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   // 双击播放、暂停
   Future<void> onDoubleTapCenter() async {
     if (!isLive && isCompleted) {
-      await videoPlayerController!.seek(Duration.zero);
-      await videoPlayerController!.play();
+      await play(repeat: true, hideControls: false);
     } else if (videoPlayerController!.state.playing) {
       await pause();
     } else {
@@ -1652,6 +1701,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     }
 
     _playerCount = 0;
+    syncDelegate = null;
     if (removeSafeArea) {
       showSystemBar();
     }

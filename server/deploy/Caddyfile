@@ -1,0 +1,3 @@
+{$TOGETHER_DOMAIN} {
+    reverse_proxy together:3000
+}

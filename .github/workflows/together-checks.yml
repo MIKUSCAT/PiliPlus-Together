@@ -26,14 +26,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      PUB_CACHE: ${{ runner.temp }}/piliplus-pub-cache
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Install the project's Flutter version
         shell: pwsh
         run: |
-          git clone --depth 1 --branch 3.47.9 https://github.com/flutter/flutter.git "$env:RUNNER_TEMP/flutter"
+          "PUB_CACHE=$env:RUNNER_TEMP/piliplus-pub-cache" >> $env:GITHUB_ENV
+          git -c core.longpaths=true clone --depth 1 --branch 3.47.9 https://github.com/flutter/flutter.git "$env:RUNNER_TEMP/flutter"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "$env:RUNNER_TEMP/flutter/bin" >> $env:GITHUB_PATH
           & "$env:RUNNER_TEMP/flutter/bin/flutter.bat" config --no-analytics --no-enable-windows-desktop

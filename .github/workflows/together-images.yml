@@ -36,7 +36,7 @@ jobs:
             if curl --fail http://127.0.0.1:3000/healthz; then break; fi
             sleep 1
           done
-          node -e "const r=await fetch('http://127.0.0.1:3000/healthz'); const s=await r.json(); if(!r.ok||s.status!=='ok'||s.protocol!==1) process.exit(1)"
+          node --input-type=module -e "const r=await fetch('http://127.0.0.1:3000/healthz'); const s=await r.json(); if(!r.ok||s.status!=='ok'||s.protocol!==1) process.exit(1)"
           docker stop together
       - name: Export for deployment without a registry account
         run: |

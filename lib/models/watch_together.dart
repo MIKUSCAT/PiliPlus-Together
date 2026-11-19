@@ -162,13 +162,22 @@ class WatchRoom {
   }
 
   String get status {
-    if (members.length < 2) return '等另一个人加入';
-    if (members.any((m) => !m.connected)) return '等待对方重新连接';
-    if (video == null) return '选一个视频，一起看吧';
+    final alone = members.length < 2;
+    if (members.any((m) => !m.connected)) {
+      return alone ? '正在重新连接' : '等待对方重新连接';
+    }
+    if (video == null) return alone ? '选一个视频，可以先看' : '选一个视频，一起看吧';
     if (members.any((m) => m.error != null)) return '等待视频准备就绪';
-    if (members.any((m) => m.suspended)) return '等你回来，一起继续';
-    if (members.any((m) => m.buffering)) return '等待缓冲，一起继续';
-    if (members.any((m) => !m.ready)) return '正在准备同一个画面';
+    if (members.any((m) => m.suspended)) {
+      return alone ? '等你回来继续' : '等你回来，一起继续';
+    }
+    if (members.any((m) => m.buffering)) {
+      return alone ? '正在缓冲' : '等待缓冲，一起继续';
+    }
+    if (members.any((m) => !m.ready)) {
+      return alone ? '正在准备视频' : '正在准备同一个画面';
+    }
+    if (alone && playing) return '正在播放，等对方加入';
     return playing ? '正在一起看' : '已暂停，等你继续';
   }
 

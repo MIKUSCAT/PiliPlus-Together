@@ -126,7 +126,7 @@ export class Room {
   }
 
   private commit(action: string, actor: string | null = null): void {
-    this.playing = !!this.video && this.desiredPlaying && this.members.size === ROOM_CAPACITY &&
+    this.playing = !!this.video && this.desiredPlaying && this.members.size > 0 &&
       [...this.members.values()].every(m => m.connected && m.ready && !m.buffering && !m.suspended && !m.error);
     this.lastAction = action;
     this.updatedBy = actor;

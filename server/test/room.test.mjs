@@ -4,19 +4,19 @@ import { Room, ProtocolError } from '../dist/room.js';
 
 const video = { kind: 'ugc', bvid: 'BV1xx411c7mD', cid: 12345, title: '一起看测试视频', cover: '', durationMs: 120_000 };
 
-function fixture() {
+function fixture({ solo = false } = {}) {
   let time = 100_000;
   let serial = 0;
   const room = new Room('ABCDEFGH', () => time);
   const a = room.addMember('小明');
-  const b = room.addMember('小雨');
+  const b = solo ? null : room.addMember('小雨');
   const command = (who, action, values = {}) => room.command(who.member.id, {
     requestId: `request-${++serial}`, action, mediaEpoch: room.mediaEpoch, ...values,
   });
   const status = (who, values = {}) => room.status(who.member.id, {
     mediaEpoch: room.mediaEpoch, ready: true, durationMs: video.durationMs, ...values,
   });
-  const start = () => { command(a, 'select', { video }); status(a); status(b); };
+  const start = () => { command(a, 'select', { video }); status(a); if (b) status(b); };
   return { room, a, b, command, status, start, advance: ms => { time += ms; } };
 }
 
@@ -39,6 +39,41 @@ test('both participants load before the room timeline advances', () => {
   status(b);
   advance(2000);
   assert.equal(room.position(), 32_000);
+  assert.equal(room.playing, true);
+});
+
+test('a lone member can play, pause, seek and resume before anyone joins', () => {
+  const { room, a, command, status, advance } = fixture({ solo: true });
+  command(a, 'select', { video, positionMs: 30_000 });
+  advance(5000);
+  assert.equal(room.position(), 30_000);
+  assert.equal(room.playing, false);
+  status(a);
+  advance(2000);
+  assert.equal(room.position(), 32_000);
+  assert.equal(room.playing, true);
+  command(a, 'pause');
+  advance(3000);
+  assert.equal(room.position(), 32_000);
+  command(a, 'seek', { positionMs: 60_000 });
+  advance(1000);
+  assert.equal(room.position(), 60_000);
+  assert.equal(room.playing, false);
+  command(a, 'play');
+  advance(1000);
+  assert.equal(room.position(), 61_000);
+});
+
+test('a joining member loads at the solo position before both continue', () => {
+  const { room, status, start, advance } = fixture({ solo: true });
+  start(); advance(8000);
+  const b = room.addMember('小雨');
+  advance(5000);
+  assert.equal(room.position(), 8000);
+  assert.equal(room.playing, false);
+  assert.equal(room.desiredPlaying, true);
+  status(b); advance(2000);
+  assert.equal(room.position(), 10_000);
   assert.equal(room.playing, true);
 });
 
@@ -139,12 +174,29 @@ test('a video selected before loading learns duration from the first ready playe
   assert.match(room.members.get(b.member.id).error, /时长不同/);
 });
 
-test('host departure transfers automatic advancement and holds the remaining member', () => {
-  const { room, a, b, start } = fixture();
-  start(); room.leave(a.member.id);
+test('host departure transfers automatic advancement and keeps the remaining member playing', () => {
+  const { room, a, b, start, advance } = fixture();
+  start(); advance(3000);
+  room.leave(a.member.id); advance(2000);
   assert.equal(room.hostId, b.member.id);
-  assert.equal(room.playing, false);
+  assert.equal(room.playing, true);
+  assert.equal(room.position(), 5000);
   assert.equal(room.members.size, 1);
+  room.leave(b.member.id);
+  assert.equal(room.playing, false);
+});
+
+test('a member leaving during buffering preserves the remaining member manual pause', () => {
+  const { room, a, b, command, status, start, advance } = fixture();
+  start(); advance(3000);
+  status(b, { buffering: true });
+  command(a, 'pause');
+  room.leave(b.member.id); advance(5000);
+  assert.equal(room.playing, false);
+  assert.equal(room.desiredPlaying, false);
+  assert.equal(room.position(), 3000);
+  command(a, 'play'); advance(1000);
+  assert.equal(room.position(), 4000);
 });
 
 test('host disconnect transfers automatic advancement without resuming playback', () => {

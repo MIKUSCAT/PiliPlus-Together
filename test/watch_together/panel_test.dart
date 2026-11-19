@@ -122,15 +122,15 @@ void main() {
   });
 
   testWidgets(
-    'waiting room shows one person, invitation and no layout errors',
+    'solo playback shows one person, invitation and no layout errors',
     (tester) async {
-      final json = roomJson();
+      final json = roomJson(playing: true);
       (json['members'] as List).removeLast();
       await mount(
         tester,
         PreviewWatchClient(previewRoom: WatchRoom.fromJson(json)),
       );
-      expect(find.text('等另一个人加入'), findsOneWidget);
+      expect(find.text('正在播放，等对方加入'), findsOneWidget);
       expect(find.textContaining('ABCD EFGH'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await capture(tester, 'waiting-light');

@@ -1,6 +1,6 @@
 services:
   together:
-    image: piliplus-together-server:1.0.0
+    image: piliplus-together-server:1.0.1
     pull_policy: never
     restart: unless-stopped
     init: true

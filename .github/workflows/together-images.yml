@@ -28,10 +28,10 @@ jobs:
         run: |
           docker buildx build --platform linux/${{ matrix.arch }} --load \
             --label org.opencontainers.image.revision="$GITHUB_SHA" \
-            --tag piliplus-together-server:1.0.0 server
+            --tag piliplus-together-server:1.0.1 server
       - name: Verify the image's health endpoint
         run: |
-          docker run -d --name together --platform linux/${{ matrix.arch }} -p 3000:3000 piliplus-together-server:1.0.0
+          docker run -d --name together --platform linux/${{ matrix.arch }} -p 3000:3000 piliplus-together-server:1.0.1
           for attempt in $(seq 1 30); do
             if curl --fail http://127.0.0.1:3000/healthz; then break; fi
             sleep 1
@@ -41,7 +41,7 @@ jobs:
       - name: Export for deployment without a registry account
         run: |
           mkdir -p artifacts
-          docker save piliplus-together-server:1.0.0 | gzip > artifacts/piliplus-together-server-1.0.0-${{ matrix.arch }}.tar.gz
+          docker save piliplus-together-server:1.0.1 | gzip > artifacts/piliplus-together-server-1.0.1-${{ matrix.arch }}.tar.gz
           cd artifacts
           sha256sum *.tar.gz > SHA256SUMS-${{ matrix.arch }}.txt
       - uses: actions/upload-artifact@v4

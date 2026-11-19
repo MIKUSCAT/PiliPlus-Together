@@ -53,7 +53,7 @@ npm ci
 npm test
 npm start
 # 或者：
-docker build -t piliplus-together-server:1.0.0 .
+docker build -t piliplus-together-server:1.0.1 .
 ```
 
 需要 Node.js 22 或更新版本（发布镜像使用 Node.js 24）。测试包含真实的双 WebSocket 客户端，以及暂停/缓冲冲突、旧视频指令、第三人拒绝、重连会话和时长不一致。

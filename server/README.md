@@ -7,7 +7,7 @@
 在 [Releases](https://github.com/MIKUSCAT/PiliPlus-Together/releases) 下载服务器对应架构的镜像和 `together-deploy.zip`，传到服务器。`uname -m` 为 `x86_64` 选 `amd64`，为 `aarch64` 选 `arm64`。镜像使用标准 `docker save` 格式，无需登录镜像仓库。
 
 ```sh
-docker load -i piliplus-together-server-1.0.0-amd64.tar.gz
+docker load -i piliplus-together-server-1.0.1-amd64.tar.gz
 unzip together-deploy.zip -d together-deploy
 cd together-deploy
 cp .env.example .env
